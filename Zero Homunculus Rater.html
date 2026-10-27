@@ -1,0 +1,372 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta charset="utf-8">
+<title>Zero Homunculus Rater</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+Sans+SC:wght@500;700;800&family=Alegreya+Sans:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: lab-bench split. Status-window inputs on the left, a ledger of rated stats on the right; stacks on phones. */
+:root{
+  --bg:#FAEBD7; --panel:#FBEFD5; --ink:#2b1d0e; --muted:#6b5232; --line:#d2b48c; --field:#FDF5E6; --head:#F5DEB3;
+  --accent:#8b5a2b; --accent-ink:#fffaf0; --band:#f0d9a8; --band-strong:#b98a4a;
+  --g-ss:#9a5b00; --g-s:#8a6d00; --g-a:#2e6b1f; --g-b:#1f5f7a; --g-c:#6b5232; --g-d:#a0521d; --g-e:#b23a0e; --g-f:#9e1b14;
+  --warn-bg:#f8e2b0; --warn-ink:#6a4300; --bad-bg:#f6d3c8; --bad-ink:#7d1a10; --ok-bg:#e4ebc9; --ok-ink:#3a4f14;
+  --display:"Alegreya Sans SC","Alegreya Sans",system-ui,sans-serif;
+  --body:"Alegreya Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1c160e; --panel:#271f14; --ink:#f0e2c4; --muted:#bca57d; --line:#4a3a24; --field:#30261a; --head:#3a2d1c;
+  --accent:#d9a560; --accent-ink:#1c140a; --band:#3d2f1d; --band-strong:#8c6a3c;
+  --g-ss:#f0b13c; --g-s:#e2c25a; --g-a:#9ccc72; --g-b:#7fb8d6; --g-c:#bca57d; --g-d:#e39a55; --g-e:#f07f4a; --g-f:#f2786b;
+  --warn-bg:#3a2c10; --warn-ink:#f3cf8a; --bad-bg:#3d1714; --bad-ink:#f6b0a8; --ok-bg:#29301a; --ok-ink:#c9dc9a;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1c160e; --panel:#271f14; --ink:#f0e2c4; --muted:#bca57d; --line:#4a3a24; --field:#30261a; --head:#3a2d1c;
+  --accent:#d9a560; --accent-ink:#1c140a; --band:#3d2f1d; --band-strong:#8c6a3c;
+  --g-ss:#f0b13c; --g-s:#e2c25a; --g-a:#9ccc72; --g-b:#7fb8d6; --g-c:#bca57d; --g-d:#e39a55; --g-e:#f07f4a; --g-f:#f2786b;
+  --warn-bg:#3a2c10; --warn-ink:#f3cf8a; --bad-bg:#3d1714; --bad-ink:#f6b0a8; --ok-bg:#29301a; --ok-ink:#c9dc9a;
+  color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5}
+.wrap{max-width:1120px;margin:0 auto;padding-block:28px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:12px 24px;margin-bottom:22px}
+h1{font-family:var(--display);font-weight:800;font-size:2rem;letter-spacing:.02em;margin:0;line-height:1.1;text-wrap:balance}
+.sub{color:var(--muted);margin:4px 0 0;max-width:62ch}
+.mode{display:flex;align-items:center;gap:10px;font-size:.9rem;color:var(--muted)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel)}
+.seg button{font:inherit;font-size:.9rem;border:0;background:transparent;color:var(--ink);padding:6px 12px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);font-weight:700}
+.seg button:focus-visible,.types button:focus-visible,input:focus-visible,select:focus-visible,.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.grid{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:820px){.grid{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}
+.label{font-family:var(--display);font-weight:700;font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+.types{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.1fr) minmax(0,.85fr) minmax(0,1.35fr);gap:6px;margin-bottom:16px}
+.types button{font:inherit;font-weight:700;font-size:.88rem;padding:8px 2px;min-width:0;overflow:hidden;text-overflow:ellipsis;border:1px solid var(--line);border-radius:8px;background:var(--field);color:var(--ink);cursor:pointer}
+.types button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+@media (max-width:420px){.types{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 12px}
+.f{display:flex;flex-direction:column;gap:3px;min-width:0}
+.f label{font-family:var(--display);font-weight:700;font-size:.85rem;letter-spacing:.05em;color:var(--muted)}
+.f input,.f select{font-family:var(--mono);font-size:1rem;padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:var(--field);color:var(--ink);width:100%;font-variant-numeric:tabular-nums}
+.f.wide{grid-column:1/-1}
+.hint{font-size:.85rem;color:var(--muted);margin:6px 0 0}
+.divider{height:1px;background:var(--line);margin:16px 0}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.btn{font:inherit;font-size:.9rem;padding:7px 12px;border-radius:7px;border:1px solid var(--line);background:var(--field);color:var(--ink);cursor:pointer}
+.summary{display:flex;flex-wrap:wrap;gap:16px 28px;align-items:center;margin-bottom:6px}
+.big{display:flex;align-items:center;gap:14px}
+.gradebig{font-family:var(--display);font-weight:800;font-size:2.6rem;line-height:1;min-width:2.2ch;text-align:center}
+.sumtext{min-width:0}
+.sumtext strong{font-size:1.15rem}
+.sumtext p{margin:2px 0 0;color:var(--muted);max-width:56ch}
+.notes{display:flex;flex-direction:column;gap:6px;margin:12px 0 4px}
+.note{font-size:.9rem;padding:7px 10px;border-radius:7px}
+.note.warn{background:var(--warn-bg);color:var(--warn-ink)}
+.note.bad{background:var(--bad-bg);color:var(--bad-ink)}
+.note.ok{background:var(--ok-bg);color:var(--ok-ink)}
+.tablewrap{overflow-x:auto;margin-top:14px}
+table{width:100%;border-collapse:collapse;min-width:620px}
+th{font-family:var(--display);font-weight:700;font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink);background:var(--head);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+td{padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:middle;font-variant-numeric:tabular-nums}
+td.num{font-family:var(--mono);white-space:nowrap}
+tr.prov td{opacity:.62}
+.stat{font-family:var(--display);font-weight:800;letter-spacing:.05em}
+.chip{display:inline-block;min-width:2.4em;text-align:center;font-family:var(--display);font-weight:800;padding:2px 8px;border-radius:999px;border:1.5px solid currentColor}
+.bar{position:relative;height:14px;min-width:150px;border-radius:7px;background:var(--field);border:1px solid var(--line)}
+.bar .band{position:absolute;top:0;bottom:0;background:var(--band);border-radius:6px}
+.bar .mid{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--band-strong)}
+.bar .mk{position:absolute;top:-4px;bottom:-4px;width:6px;margin-left:-3px;border-radius:3px;background:var(--ink)}
+.bar .rng{position:absolute;top:2px;bottom:2px;border-radius:4px;background:var(--ink);opacity:.85}
+.small{font-size:.82rem;color:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:12px;font-size:.85rem;color:var(--muted)}
+.legend span b{font-family:var(--display)}
+details{margin-top:20px}
+summary{cursor:pointer;font-family:var(--display);font-weight:700;letter-spacing:.04em}
+.method{max-width:72ch}
+.method code,.method pre{font-family:var(--mono);font-size:.88rem}
+.method pre{background:var(--field);border:1px solid var(--line);border-radius:8px;padding:10px 12px;overflow-x:auto;white-space:pre}
+@media (prefers-reduced-motion:no-preference){.bar .mk,#results.stale .tablewrap,#results.stale .summary{opacity:.45}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700;padding:8px 18px}
+.viewseg{margin-top:6px}
+.viewseg button{padding:7px 18px;font-weight:600}
+.bar .rng{transition:left .25s ease,width .25s ease}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Zero Homunculus Rater</h1>
+      <p class="sub">Enter your homunculus's status window (Alt+R) and press Submit to see how its ATK, MATK, HIT, DEF, HP and the rest compare with every homunculus of the same type and level in Ragnarok Online Zero.</p>
+    </div>
+  </header>
+
+  <div class="grid">
+    <form class="panel" id="form" autocomplete="off">
+      <p class="label">Homunculus</p>
+      <div class="types" role="group" aria-label="Homunculus type">
+        <button type="button" data-type="lif" aria-pressed="false">Lif</button>
+        <button type="button" data-type="amistr" aria-pressed="false">Amistr</button>
+        <button type="button" data-type="filir" aria-pressed="false">Filir</button>
+        <button type="button" data-type="vanil" aria-pressed="true">Vanilmirth</button>
+      </div>
+      <div class="fields">
+        <div class="f wide"><label for="lvl">Level</label><input id="lvl" type="number" min="1" max="150" inputmode="numeric"></div>
+        <div class="f"><label for="atk">ATK</label><input id="atk" type="number" min="0" inputmode="numeric"></div>
+        <div class="f"><label for="matk">MATK</label><input id="matk" type="number" min="0" inputmode="numeric"></div>
+        <div class="f"><label for="hit">HIT</label><input id="hit" type="number" min="0" inputmode="numeric"></div>
+        <div class="f"><label for="crit">Critical</label><input id="crit" type="number" min="0" inputmode="numeric"></div>
+        <div class="f"><label for="def">DEF</label><input id="def" type="number" min="0" inputmode="numeric"></div>
+        <div class="f"><label for="mdef">MDEF</label><input id="mdef" type="number" min="0" inputmode="numeric"></div>
+        <div class="f"><label for="flee">FLEE</label><input id="flee" type="number" min="0" inputmode="numeric"></div>
+        <div class="f"><label for="aspd">ASPD</label><input id="aspd" type="number" min="0" inputmode="numeric"></div>
+        <div class="f"><label for="hp">Max HP</label><input id="hp" type="number" min="0" inputmode="numeric"></div>
+        <div class="f"><label for="sp">Max SP</label><input id="sp" type="number" min="0" inputmode="numeric"></div>
+        <div class="f wide" id="passiveBox"><label for="passive" id="passiveLabel">Instruction Change</label>
+          <select id="passive"><option>0</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></div>
+      </div>
+      <div class="actions">
+        <button type="submit" class="btn primary" id="submit">Submit</button>
+        <button type="button" class="btn" id="reset">Reset</button>
+      </div>
+    </form>
+
+    <section class="panel" id="results" aria-live="polite">
+      <div class="summary">
+        <div class="big"><div class="gradebig" id="ovGrade">–</div>
+          <div class="sumtext"><strong id="ovTitle">Enter a status window</strong><p id="ovText">Fill in the fields on the left and press Submit.</p></div>
+        </div>
+      </div>
+      <div class="notes" id="notes"></div>
+      <div id="out" hidden>
+        <div class="seg viewseg" role="group" aria-label="Show">
+          <button type="button" id="vStats" aria-pressed="true">Stats</button>
+          <button type="button" id="vAttr" aria-pressed="false">Attributes</button>
+        </div>
+        <div id="statBox" class="tablewrap">
+          <table>
+            <thead><tr><th>Stat</th><th>Yours</th><th>Typical at this level</th><th style="min-width:170px">Where it sits</th><th>Better than</th><th>Grade</th></tr></thead>
+            <tbody id="statRows"></tbody>
+          </table>
+        </div>
+        <div id="attrBox" hidden>
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>Stat</th><th>Worked out</th><th>From growth</th><th>Typical at this level</th><th style="min-width:170px">Where it sits</th><th>Better than</th><th>Grade</th></tr></thead>
+              <tbody id="attrRows"></tbody>
+            </table>
+          </div>
+          <p class="small" style="margin-top:8px">"From growth" removes the level 1 starting value and any Instruction Change bonus.</p>
+        </div>
+        <div class="legend" id="legend"></div>
+        <p class="small" style="margin-top:10px">The shaded band is the middle 90% of homunculi of this type, level and passive skill level; the thin line is the average. Your passive skill is counted the same way for everyone, so the comparison is like for like.</p>
+      </div>
+    </section>
+  </div>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+// Per-level gain odds for one roll of a..b tenths with the decimal dropped (the rAthena method)
+function R(a,b){var n=b-a+1,p=[];for(var v=a;v<=b;v++){var k=Math.floor(v/10);p[k]=(p[k]||0)+1/n;}for(var i=0;i<p.length;i++)p[i]=p[i]||0;return p;}
+var NOP={name:"",STR:[0,0,0,0,0,0],INT:[0,0,0,0,0,0],DEF:[0,0,0,0,0,0],HP:0,SP:0};
+var T={
+  vanil:{name:"Vanilmirth",base:{STR:11,AGI:11,VIT:11,INT:11,DEX:11,LUK:11},
+    l1:{atk:16,matk:52,hit:162,crit:4,def:27,mdef:19,flee:112,aspd:133,hp:80,sp:11},
+    passive:{name:"Instruction Change",hint:"Instruction Change adds STR and INT, which raises ATK, MATK and MDEF.",
+      STR:[0,1,1,3,4,4],INT:[0,1,2,2,4,5],DEF:[0,0,0,0,0,0],HP:0,SP:0},
+    g:{STR:R(1,50),AGI:R(1,50),VIT:R(1,50),INT:R(1,50),DEX:R(1,50),LUK:R(1,50)},
+    hp:[30,300],sp:[0,12]},
+  amistr:{name:"Amistr",base:{STR:20,AGI:17,VIT:35,INT:11,DEX:24,LUK:13},
+    l1:{atk:28,matk:60,hit:175,crit:5,def:78,mdef:37,flee:118,aspd:136,hp:320,sp:10},
+    passive:{name:"Adamantium Skin",hint:"Adamantium Skin adds 4 DEF per level and 2% Max HP per level.",
+      STR:[0,0,0,0,0,0],INT:[0,0,0,0,0,0],DEF:[0,4,8,12,16,20],HP:0.02,SP:0},
+    g:{STR:R(8,30),AGI:R(4,36),VIT:R(4,40),INT:R(1,30),DEX:R(3,29),LUK:R(3,24)},
+    hp:[80,300],sp:[6,20]},
+  filir:{name:"Filir",base:{STR:29,AGI:35,VIT:9,INT:8,DEX:30,LUK:9},
+    l1:{atk:34,matk:50,hit:181,crit:4,def:35,mdef:14,flee:136,aspd:141,hp:90,sp:25},
+    passive:null,
+    g:{STR:R(4,40),AGI:R(8,40),VIT:R(5,10),INT:R(3,19),DEX:R(4,40),LUK:R(3,39)},
+    hp:[45,150],sp:[4,12]},
+  lif:{name:"Lif",base:{STR:12,AGI:20,VIT:15,INT:35,DEX:24,LUK:14},
+    l1:{atk:25,matk:144,hit:175,crit:5,def:40,mdef:46,flee:121,aspd:137,hp:150,sp:40},
+    passive:{name:"Brain Surgery",hint:"Brain Surgery is counted as +1% Max SP per level (rAthena's value; not yet measured in Zero).",
+      STR:[0,0,0,0,0,0],INT:[0,0,0,0,0,0],DEF:[0,0,0,0,0,0],HP:0,SP:0.01},
+    g:{STR:R(5,29),AGI:R(5,29),VIT:R(5,29),INT:R(4,40),DEX:R(6,40),LUK:R(6,20)},
+    hp:[60,200],sp:[4,15]}
+};
+var GRADES=[[97.5,"SS","--g-ss"],[90,"S","--g-s"],[75,"A","--g-a"],[60,"B","--g-b"],[40,"C","--g-c"],[25,"D","--g-d"],[10,"E","--g-e"],[0,"F","--g-f"]];
+function grade(p){for(var i=0;i<GRADES.length;i++)if(p>=GRADES[i][0])return GRADES[i];return GRADES[GRADES.length-1];}
+var ATTRS=["STR","AGI","VIT","INT","DEX","LUK"];
+var ASPD_CAP=190; // ASPD can't go above 190 in Zero
+
+// ---- distributions: {o: offset (value of index 0), p: probabilities} ----
+function conv(a,b){var r=new Array(a.length+b.length-1).fill(0);for(var i=0;i<a.length;i++){if(!a[i])continue;for(var j=0;j<b.length;j++)r[i+j]+=a[i]*b[j];}return r;}
+function power(p,n){var res=[1],base=p.slice();while(n>0){if(n&1)res=conv(res,base);n>>=1;if(n)base=conv(base,base);}return res;}
+var cache={};
+function gainDist(type,stat,n){var k=type+stat+"|"+n;if(!cache[k])cache[k]=power(T[type].g[stat],n);return cache[k];}
+function attrDist(type,stat,n){return {o:T[type].base[stat],p:gainDist(type,stat,n)};}
+function sumD(a,b){return {o:a.o+b.o,p:conv(a.p,b.p)};}
+function fromMap(m){var lo=Infinity,hi=-Infinity,k;for(k in m){k=+k;if(k<lo)lo=k;if(k>hi)hi=k;}var p=new Array(hi-lo+1).fill(0);for(k in m)p[+k-lo]+=m[k];return {o:lo,p:p};}
+function map1(a,f){var m={};for(var i=0;i<a.p.length;i++){if(!a.p[i])continue;var v=f(a.o+i);m[v]=(m[v]||0)+a.p[i];}return fromMap(m);}
+function map2(a,b,f){var m={};for(var i=0;i<a.p.length;i++){var pi=a.p[i];if(pi<1e-12)continue;for(var j=0;j<b.p.length;j++){var pj=b.p[j];if(pj<1e-12)continue;var v=f(a.o+i,b.o+j);m[v]=(m[v]||0)+pi*pj;}}return fromMap(m);}
+// summary interface used by the table rows
+function sumArr(d){var m=0,i;for(i=0;i<d.p.length;i++)m+=(d.o+i)*d.p[i];
+  return {mean:m,
+    q:function(x){var c=0;for(var i=0;i<d.p.length;i++){c+=d.p[i];if(c>=x)return d.o+i;}return d.o+d.p.length-1;},
+    pct:function(v){var below=0,at=0,vf=Math.floor(v),i;for(i=0;i<d.p.length;i++){var val=d.o+i;if(val<vf)below+=d.p[i];else if(val===vf)at=d.p[i];}
+      if(vf!==v){below+=at;at=0;}return 100*Math.min(1,Math.max(0,below+at/2));}};}
+function erf(x){var s=x<0?-1:1;x=Math.abs(x);var t=1/(1+0.3275911*x);var y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-x*x);return s*y;}
+var Z={0.005:-2.5758,0.05:-1.6449,0.95:1.6449,0.995:2.5758};
+// HP/SP: base + n rolls of a..b, then × mult (rounded down)
+function poolSummary(base,a,b,n,mult){
+  if(n===0)return sumArr({o:Math.floor(base*mult),p:[1]});
+  var w=b-a+1;
+  if(n<=4){var u=new Array(w).fill(1/w),p=power(u,n),m={};for(var i=0;i<p.length;i++){var v=Math.floor((base+n*a+i)*mult);m[v]=(m[v]||0)+p[i];}return sumArr(fromMap(m));}
+  var mu=(base+n*(a+b)/2),sd=Math.sqrt(n*(w*w-1)/12);
+  return {mean:mu*mult,
+    q:function(x){return Math.floor((mu+sd*Z[x])*mult);},
+    pct:function(v){var raw=v/mult;return 100*0.5*(1+erf((raw-mu)/(sd*Math.SQRT2)));}};}
+
+var state={type:"vanil"};
+var $=function(id){return document.getElementById(id);};
+var ids=["lvl","atk","matk","hit","crit","def","mdef","flee","aspd","hp","sp","passive"];
+var rated=false;
+
+function save(){try{var o={type:state.type};ids.forEach(function(i){o[i]=$(i).value;});localStorage.setItem("homrater2",JSON.stringify(o));}catch(e){}}
+function load(){try{var s=localStorage.getItem("homrater2");return s?JSON.parse(s):null;}catch(e){return null;}}
+function fillL1(t){var d=T[t].l1;$("lvl").value=1;Object.keys(d).forEach(function(k){$(k).value=d[k];});$("passive").value="0";}
+
+function setType(t){state.type=t;document.querySelectorAll(".types button").forEach(function(b){b.setAttribute("aria-pressed",String(b.dataset.type===t));});
+  var p=T[t].passive,box=$("passiveBox");
+  if(p){box.hidden=false;$("passiveLabel").textContent=p.name;}
+  else{box.hidden=true;}
+}
+function num(id){var v=$(id).value;if(v===""||v===null)return null;var n=Number(v);return isFinite(n)?Math.round(n):null;}
+
+function barHTML(S,lo,hi){
+  var a=S.q(0.005),b=S.q(0.995);if(b<=a)b=a+1;
+  var q5=S.q(0.05),q95=S.q(0.95),m=S.mean;
+  var min=Math.min(a,lo),span=Math.max(b,hi)-min;if(span<=0)span=1;
+  function x(v){return Math.max(0,Math.min(100,(v-min)/span*100));}
+  var h='<div class="bar" aria-hidden="true"><div class="band" style="left:'+x(q5)+'%;width:'+(x(q95)-x(q5))+'%"></div><div class="mid" style="left:'+x(m)+'%"></div>';
+  if(hi>lo)h+='<div class="rng" style="left:'+x(lo)+'%;width:'+Math.max(1.5,x(hi)-x(lo))+'%"></div>';
+  else h+='<div class="mk" style="left:'+x(lo)+'%"></div>';
+  return h+'</div>';
+}
+function chip(g){return '<span class="chip" style="color:var('+g[2]+')">'+g[1]+'</span>';}
+function fmtR(lo,hi){return lo===hi?String(lo):lo+"–"+hi;}
+function fmtAvg(m){return Math.abs(m)>=1000?Math.round(m).toLocaleString():m.toFixed(1);}
+function row(label,src,shown,S,lo,hi,extraCol){
+  var p1=S.pct(lo),p2=S.pct(hi),pm=S.pct((lo+hi)/2),g=grade(pm);
+  var better=(Math.abs(p2-p1)<1)?Math.round(pm)+"%":Math.round(p1)+"–"+Math.round(p2)+"%";
+  return '<tr><td><span class="stat">'+label+'</span>'+(src?'<div class="small">'+src+'</div>':'')+'</td><td class="num">'+shown+'</td>'+(extraCol!==undefined?'<td class="num">'+extraCol+'</td>':'')+
+    '<td class="num">'+S.q(0.05)+'–'+S.q(0.95)+' <span class="small">avg '+fmtAvg(S.mean)+'</span></td><td>'+barHTML(S,lo,hi)+'</td><td class="num">'+better+'</td><td>'+chip(g)+'</td></tr>';
+}
+function blankRow(label,msg,cols){return '<tr><td class="stat">'+label+'</td><td colspan="'+cols+'" class="small">'+msg+'</td></tr>';}
+function setNotes(notes){$("notes").innerHTML=notes.map(function(x){return '<div class="note '+x[0]+'">'+x[1]+'</div>';}).join("");}
+function prompt(title,text){$("ovGrade").textContent="–";$("ovGrade").style.color="";$("ovTitle").textContent=title;$("ovText").textContent=text;$("out").hidden=true;$("results").classList.remove("stale");}
+
+function rate(){
+  var t=T[state.type],L=num("lvl"),atk=num("atk"),matk=num("matk"),mdefv=num("mdef"),hit=num("hit"),crit=num("crit"),def=num("def"),flee=num("flee"),aspd=num("aspd"),hp=num("hp"),sp=num("sp");
+  var P=t.passive||NOP,pl=t.passive?(+$("passive").value||0):0;
+  var notes=[];
+  if(!L||L<1||hit===null||flee===null||def===null||crit===null||atk===null||matk===null||mdefv===null){
+    prompt("Some fields are missing","Level, ATK, MATK, HIT, Critical, DEF, MDEF and FLEE are needed. ASPD, HP and SP are optional.");setNotes([]);return;}
+  rated=true;save();$("results").classList.remove("stale");
+  var n=L-1,b=Math.floor(L/10),icS=P.STR[pl],icI=P.INT[pl],skinD=P.DEF[pl];
+  // ---- work out the attributes ----
+  var DEX=hit-L-150,hAGI=flee-L-100,AGI=hAGI-b;
+  var x=def-skinD-Math.floor(hAGI/2)-Math.floor(L/2),hVIT=Math.floor(x/2),VIT=hVIT-b;
+  if(x%2!==0)notes.push(["warn","DEF doesn't divide evenly into VIT. Check DEF"+(state.type==="amistr"?" and the Adamantium Skin level":"")+"."]);
+  var LUKlo=3*(crit-1),LUKhi=LUKlo+2;
+  var SL=2*atk-DEX-3*b,SLlo=SL-icS,SLhi=SL+1-icS;
+  var hIs=[];for(var I=0;I<1500;I++){if(Math.floor((hVIT+L)/4+I/2)+Math.floor((hVIT+I)/2)===mdefv)hIs.push(I);}
+  // MATK narrows INT and LUK together
+  var pairs=[];hIs.forEach(function(hI){for(var K=LUKlo;K<=LUKhi;K++){if(3*L+3*hI+Math.floor((hI+DEX+K+2*b)/2)===matk)pairs.push([hI,K]);}});
+  var INTlo,INThi;
+  if(pairs.length){var is=pairs.map(function(p){return p[0];}),ks=pairs.map(function(p){return p[1];});
+    INTlo=Math.min.apply(null,is)-b-icI;INThi=Math.max.apply(null,is)-b-icI;LUKlo=Math.min.apply(null,ks);LUKhi=Math.max.apply(null,ks);}
+  else if(hIs.length){INTlo=hIs[0]-b-icI;INThi=hIs[hIs.length-1]-b-icI;notes.push(["warn","MATK doesn't match the other numbers exactly. Check MATK, Critical and the Instruction Change level."]);}
+  else{var est=Math.round((matk-3*L-(DEX+(LUKlo+LUKhi)/2+2*b)/2)/3.5)-b-icI;INTlo=est;INThi=est;notes.push(["warn","MDEF doesn't fit this VIT, so INT is a rough estimate from MATK. Check MDEF and DEF."]);}
+  var STRlo=Math.max(0,SLlo-LUKhi),STRhi=SLhi-LUKlo;
+  if(aspd!==null){var pa=Math.min(ASPD_CAP,130+Math.floor((Math.floor(28*hAGI/10)+Math.floor(7*(DEX+b)/10))/10)),dd=aspd-pa;
+    if(aspd>=ASPD_CAP)notes.push(["ok","ASPD is at the "+ASPD_CAP+" cap. Every homunculus at the cap rates the same for ASPD."]);
+    if(dd!==0)notes.push([Math.abs(dd)>1?"bad":"warn","ASPD should be "+pa+" for this HIT, FLEE and level, but you entered "+aspd+". Check those numbers."]);}
+  var B=t.base;
+  [["DEX",DEX],["AGI",AGI],["VIT",VIT]].forEach(function(s){if(s[1]<B[s[0]])notes.push(["bad",s[0]+" works out below "+t.name+"'s level 1 value of "+B[s[0]]+". Check the level and the numbers you entered."]);});
+
+  // ---- distributions for this type and level ----
+  var D={};ATTRS.forEach(function(s){D[s]=attrDist(state.type,s,n);});
+  var F=Math.floor;
+  var SD={
+    ATK:map1(sumD(sumD(D.STR,D.DEX),D.LUK),function(v){return F((v+icS+3*b)/2);}),
+    MATK:map2(D.INT,sumD(D.DEX,D.LUK),function(i,dl){var hi=i+b+icI;return 3*L+3*hi+F((hi+dl+2*b)/2);}),
+    HIT:map1(D.DEX,function(v){return L+v+150;}),
+    Critical:map1(D.LUK,function(v){return F(v/3)+1;}),
+    DEF:map2(D.VIT,D.AGI,function(v,a){return 2*(v+b)+F((a+b)/2)+F(L/2)+skinD;}),
+    MDEF:map2(D.VIT,D.INT,function(v,i){var hv=v+b,hi=i+b+icI;return F((hv+L)/4+hi/2)+F((hv+hi)/2);}),
+    FLEE:map1(D.AGI,function(v){return L+v+b+100;}),
+    ASPD:map2(D.AGI,D.DEX,function(a,d){return Math.min(ASPD_CAP,130+F((F(28*(a+b)/10)+F(7*(d+b)/10))/10));})
+  };
+  var vals={ATK:atk,MATK:matk,HIT:hit,Critical:crit,DEF:def,MDEF:mdefv,FLEE:flee,ASPD:aspd};
+  var html="";
+  ["ATK","MATK","HIT","Critical","DEF","MDEF","FLEE","ASPD"].forEach(function(k){
+    if(vals[k]===null){html+=blankRow(k,"Not entered.",5);return;}
+    html+=row(k,"",String(vals[k]),sumArr(SD[k]),vals[k],vals[k]);});
+  var hpM=1+P.HP*pl,spM=1+P.SP*pl;
+  var HS=poolSummary(t.l1.hp,t.hp[0],t.hp[1],n,hpM),SS=poolSummary(t.l1.sp,t.sp[0],t.sp[1],n,spM);
+  if(hp===null)html+=blankRow("Max HP","Not entered.",5);else html+=row("Max HP",P.HP&&pl?"incl. Adamantium Skin":"",String(hp),HS,hp,hp);
+  if(sp===null)html+=blankRow("Max SP","Not entered.",5);else html+=row("Max SP",P.SP&&pl?"incl. Brain Surgery":"",String(sp),SS,sp,sp);
+  $("statRows").innerHTML=html;
+  function poolCheck(v,base,ab,mult,label){if(v===null)return;var lo=F((base+n*ab[0])*mult),hi=F((base+n*ab[1])*mult);
+    if(v<lo||v>hi)notes.push(["bad",label+" of "+v+" is outside what's possible for a level "+L+" "+t.name+" ("+lo+"–"+hi+"). Check the level, "+label+" and the passive skill level."]);}
+  poolCheck(hp,t.l1.hp,t.hp,hpM,"Max HP");poolCheck(sp,t.l1.sp,t.sp,spM,"Max SP");
+
+  // ---- attributes ----
+  var data=[{s:"STR",lo:STRlo,hi:STRhi,src:"ATK"},{s:"AGI",lo:AGI,hi:AGI,src:"FLEE"},{s:"VIT",lo:VIT,hi:VIT,src:"DEF"},
+            {s:"INT",lo:INTlo,hi:INThi,src:"MDEF and MATK"},{s:"DEX",lo:DEX,hi:DEX,src:"HIT"},{s:"LUK",lo:LUKlo,hi:LUKhi,src:"Critical and MATK"}];
+  var ah="";
+  data.forEach(function(r){var S=sumArr(D[r.s]),bs=B[r.s];
+    ah+=row(r.s,"",fmtR(r.lo,r.hi),S,r.lo,r.hi,(r.lo===r.hi?"+"+(r.lo-bs):"+"+(r.lo-bs)+"–"+(r.hi-bs)));});
+  $("attrRows").innerHTML=ah;
+
+  // ---- overall: all six attributes ----
+  var dT=sumD(sumD(sumD(D.AGI,D.VIT),sumD(D.DEX,D.INT)),sumD(D.STR,D.LUK)),ST=sumArr(dT);
+  var totLo=AGI+VIT+DEX+INTlo+SLlo,totHi=AGI+VIT+DEX+INThi+SLhi,tot=(totLo+totHi)/2;
+  var pLo=ST.pct(totLo),pHi=ST.pct(totHi),pT=(pLo+pHi)/2,gT=grade(pT);
+  if(L===1){$("ovGrade").textContent="–";$("ovGrade").style.color="";
+    $("ovTitle").textContent=t.name+", level 1";
+    $("ovText").textContent="Growth starts at level 2, so there's nothing to rate yet.";}
+  else{
+    $("ovGrade").textContent=gT[1];$("ovGrade").style.color="var("+gT[2]+")";
+    var pr=(Math.round(pHi)-Math.round(pLo)<=1)?Math.round(pT)+"%":Math.round(pLo)+"–"+Math.round(pHi)+"%";
+    $("ovTitle").textContent=t.name+", level "+L+": better growth than "+pr+" of homunculi";
+    $("ovText").textContent="Its six attributes add up to about "+Math.round(tot)+", against an average of "+Math.round(ST.mean)+" for a level "+L+" "+t.name+". The tables below compare each stat.";}
+  if(L===1)notes.push(["ok","At level 1 there's no growth yet, so every homunculus of this type has the same status window."]);
+  setNotes(notes);$("out").hidden=false;legend();
+}
+function legend(){$("legend").innerHTML=GRADES.map(function(g,i){var hi=i===0?100:GRADES[i-1][0];return '<span><b style="color:var('+g[2]+')">'+g[1]+'</b> '+g[0]+'–'+hi+'%</span>';}).join("");}
+function markStale(){if(rated&&!$("out").hidden){$("results").classList.add("stale");$("ovText").textContent="You've changed the numbers. Press Submit to update the comparison.";}}
+
+document.querySelectorAll(".types button").forEach(function(btn){btn.addEventListener("click",function(){if(btn.dataset.type===state.type)return;setType(btn.dataset.type);fillL1(btn.dataset.type);rated=false;prompt("Enter a status window","Level 1 "+T[state.type].name+" values are filled in. Enter yours and press Submit.");setNotes([]);});});
+ids.forEach(function(i){$(i).addEventListener("input",markStale);$(i).addEventListener("change",markStale);});
+$("form").addEventListener("submit",function(e){e.preventDefault();rate();});
+$("reset").addEventListener("click",function(){fillL1(state.type);rated=false;prompt("Enter a status window","Level 1 "+T[state.type].name+" values are filled in. Enter yours and press Submit.");setNotes([]);});
+function setView(a){$("vStats").setAttribute("aria-pressed",String(!a));$("vAttr").setAttribute("aria-pressed",String(a));$("statBox").hidden=a;$("attrBox").hidden=!a;try{localStorage.setItem("homrater2attr",a?"1":"0");}catch(e){}}
+$("vStats").addEventListener("click",function(){setView(false);});
+$("vAttr").addEventListener("click",function(){setView(true);});
+try{if(localStorage.getItem("homrater2attr")==="1")setView(true);}catch(e){}
+
+var saved=load();
+if(saved&&saved.type&&T[saved.type]&&saved.lvl){setType(saved.type);ids.forEach(function(i){if(saved[i]!==undefined&&saved[i]!==null)$(i).value=saved[i];});rate();}
+else{setType("vanil");fillL1("vanil");}
+})();
+</script>
+
+</body></html>
